@@ -1,0 +1,14 @@
+
+DROP TABLE IF EXISTS 'dislock';
+CREATE TABLE 'dislock' (
+    'id' int(11) unsigned NOT NULL COMMENT '主键',
+    'lock_type' varchar(64) NOT NULL COMMENT '锁类型',
+    'owner_id' varchar(255) NOT NULL COMMENT '持锁对象',
+    'update_time' timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY ('id'), #非空唯一约束
+    UNIQUE KEY 'idx_lock_type' ('lock_type') #不会出现重复
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=UTF8 COMMENT='分布式锁表';
+
+
+innodb中的S锁和X锁互斥
+    select * from lock where ...lock in share mode;
