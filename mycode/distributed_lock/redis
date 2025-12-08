@@ -1,0 +1,40 @@
+
+
+redis 实现分布式锁
+
+setnx = set successfully if key not existed
+
+加锁成功
+    setnx teacher qiao
+    (integer) 1
+
+加锁失败
+    setnx teacher guo
+    (integer) 0
+
+解锁
+    1.get teacher
+    qiao
+    2.del tacher
+    (integer) 1
+    原子性由lua脚本实现
+
+锁超时
+    set lock 11111 nx ex 30
+    OK
+
+利用 redis pub-sub特性
+获取锁，如果失败，监听广播事件
+未来释放锁时，发布事件通知等待的客户端
+
+依然是非公平锁，没有排队机制
+
+可用性问题
+    redis-lock算法
+        准备奇数个redis节点，比如5个
+        1.尝试向5个节点去加锁
+        2.只要3个节点加锁成功返回，说明加锁成功
+
+        解锁
+        1.尝试向5个节点去解锁
+        2.只要3个节点解锁成功返回，说明解锁成功

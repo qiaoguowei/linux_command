@@ -12,3 +12,16 @@ CREATE TABLE 'dislock' (
 
 innodb中的S锁和X锁互斥
     select * from lock where ...lock in share mode;
+
+加锁：
+    insert into dislock ('lock_type', 'owner_id') values ('act_lock', 'ad2daf3');
+
+解锁：
+    delete from dislock where 'lock_type' = 'act_lock' and 'owner_id' = 'ad2daf3';
+
+超进程解锁
+    delete from dislock where 'lock_type' = 'act_lock' and 'update_time' < date_sub(now(), interval 30 seconds);;
+    
+mysql 只能实现非公平锁
+
+mysql计算和存储是在一起的，在一个进程中
