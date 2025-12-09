@@ -1,0 +1,32 @@
+
+同步日志和异步日志的区别:
+与在同一线程处理是否有关系
+
+registry   ---- spdlog::register_logger(std::shared_ptr<logger> logger);
+
+logger -----  spdlog::get(logger_name);
+    flush策略
+    logger->log(...);
+    set_level(...);
+    
+接收器
+    set_level
+    set_pattern
+
+spdlog抽象模型
+                        register
+                        /      \
+                    logger    async_logger
+                    /\ \       / / \ \
+                  sink  sink  sink    thread pool
+如何创建logger
+    spdlog工厂方法创建(屏蔽复杂的创建流程)
+    googletest mt多线程  st单线程
+如何创建sink
+如何自定义格式化
+如何创建异步日志
+如何定制刷新策略
+
+
+直接通过spdlog::info()打印的话
+默认的logger，stdout, colered, multithreaded
