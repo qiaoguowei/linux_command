@@ -1,0 +1,70 @@
+
+redis 远程字典服务
+    通过tcp与redis简历链接交互
+    请求回应模式
+    通过字典的方式索引存储数据
+
+内存数据库
+    数据都在内存中，不可能出现，需要的数据不在内存当中，而在磁盘中
+
+kv数据库
+    存储方式
+    操作方式
+
+数据结构数据库
+    所有的key都是字节串
+    value的类型
+        string 字节串(字符串为\0为分割符，字节串以长度信息描述) 长度小于1mb加倍扩容，超过1mb每次只多扩容1mb，字符串的最大长度为512mb
+        list    插入有序
+        hash
+        zset 有序集合(元素唯一)
+        set 集合
+        stream 消息队列
+        hyperloglog
+        
+    command:
+        keys *  //遍历所有key
+
+        string
+            set teacher qiao
+            get teacher
+            set teacher 1000
+            object encoding teacher //查看存储类型
+            incr teacher //int类型，原子自增+1，并把最新的值返回
+            incr counter //不存在counter，创建并自增
+            incrby counter 100  //自增100
+            decr counter        //counter--
+            decrby counter 50   //counter -= 50
+            setnx counter 10000 //key不存在才能设置成功，返回0设置失败，返回1成功
+            del counter         //删除counter 
+            setbit bitstr 1 1   // 第一位置1
+            setbit bitstr 2 1   // 第二位置1
+            getbit bitstr 3     // return 0, 第三位没有置1
+            bitcount bitstr 0 -1// return 2
+        list
+            lpush/rpush teachers qiao guo wei
+            lpop/rpop key
+            blpop/brpop teachers 0 //没有元素时阻塞等待
+            lrange teachers 0 -1
+            ltrim teacher 0 4       //保留左边的5个数据
+        hash
+            hset teacher:10001 name mark
+            hgetall teacher:10001
+            hmset key value1 
+            HINCRBY counter:1000 sign 1 //加
+            HLEN teacher:10001          //查看hash里面有多少元素
+        set
+            sadd teacher:set qiao guo wei
+            smemebers teacher:set
+        zset
+            zadd teacher:rank 98 mark 99 darren 100 king
+            zrange teacher:rank 0 -1 withscores
+
+redis存储结构(kv)
+    存储key的数组，大小为2的n次方
+    key经过hash函数(siphash)计算，生成64位整数，对数据长度取余，得到数组索引值
+
+-- redis lua脚本
+local record = KEYS[1]
+redis.call("LPUSH", "says", record)
+redis.call("LTRIM", "says", 0, 4)
