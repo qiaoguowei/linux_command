@@ -56,9 +56,17 @@ kv数据库
         set
             sadd teacher:set qiao guo wei
             smemebers teacher:set
+            scard key                   //计算集合元素个数
+            sismember teacher:set qiao  //qiao是否是存储集合teacher:set的成员
+            srandmember teacher:set [count]    //随机返回teacher:set集合中的一个或者多个元素，不删除这些元素
+            spop teacher:set [count]    //移除并返回一个或多个元素
+            sdiff key [key ...]     //差集
+            sinter key [key ...]    //交集
+            sunion key [key ...]    //并集
         zset
             zadd teacher:rank 98 mark 99 darren 100 king
             zrange teacher:rank 0 -1 withscores
+
 
 redis存储结构(kv)
     存储key的数组，大小为2的n次方
@@ -68,3 +76,76 @@ redis存储结构(kv)
 local record = KEYS[1]
 redis.call("LPUSH", "says", record)
 redis.call("LTRIM", "says", 0, 4)
+
+redis pipeline
+    通过一次发送多次请求命令，从而减少网络传输的时间
+    各条指令之间是无关的
+
+某个用户 某个行为 事件范围 发生N次
+
+expire key 10 设置过期时间
+
+s服务器需要和redis建立多少条连接？
+    1.基本操作，只需要一条连接
+    2.阻塞连接的需求，另外建立一条连接
+    3.需要监听发布模式，另外建立一条连接
+        PSUBSCRIBE *.news  /SUBSCRIBE messagebox   订阅频道
+        PUBLISH messagebox "hello qiao" 发布消息
+        redis停机重启，pub/sub的消息是不会持久化的，所有的消息被直接丢弃(不确保消息到达)
+
+
+redis事务
+    cpu缓存一致，锁总线，原子性，原子变量，原子操作
+    比如i++指令(三个指令)，在一个核心里面运行，其他核心只能看到这个指令完成，或这个指令还没有开始
+
+    单个命令操作，具备原子性，因为redis是单线程的
+
+    ACID
+    原子性
+    一致性
+        完整约束的一致
+            key对应的是什么类型的，只能用对应类型的指令操作他
+        用户的逻辑一致
+    隔离性：
+        各个事务之间互相影响的程度，redis是单线程，天然具备隔离性
+    持久性：
+
+    multi           //开启事务，命令入队列
+    exec            //提交事务，
+    discard         //取消事务，清空队列
+    watch
+
+lua脚本
+    多条指令作为一个事务执行
+    把lua脚本发送给redis，返回hash值，redis存储lua脚本
+    eval 'local key = KEYS[1]; local val = redis.call("get", key); \
+        if not val then val = 1 end; redis.call("set", key, val*2); return val*2;' 1 score:1
+        
+    script load 'local key = KEYS[1]; local val = redis.call("get", key); \
+        if not val then val = 1 end; redis.call("set", key, val*2); return val*2;'
+    "a614235c331e0c17994b40045ea88f1cb1e78895"
+    EVALSHA a614235c331e0c17994b40045ea88f1cb1e78895 1 score:1
+
+异步连接/同步连接
+    技术拆解
+    1.与redis建立连接，connect(fd, &addr, &len); 非阻塞io
+        a.创建socket, 设置fd为非阻塞
+        b.connect -1, errno = EINPROGRESS
+        c.fd注册到epoll 写事件
+        d.如果连接建立成功，fd的写事件进行响应，注销写事件
+    2.向redis发送数据 a.使用redis协议加密 b.通过tcp发送过去
+        a.int n = write(fd, buf, sz); if n < sz && n != -1; n = -1, errno = EWOULDBLOCK 说明发送缓冲区已满
+        b.注册写事件, 如果写事件触发，write(fd, buf, sz); 如果发送完毕， 注销写事件
+        c.注册读事件
+    3.读取redis的返回 a.通过tcp接受数据，分割数据包 b.使用redis协议解密
+        a.读事件触发，int n = read(fd, buf, sz)
+        b.根据redis协议，分割数据包
+
+    将hiredis融入到自己的代码中
+    ac->ev.addRead = redisLibeventAddRead;              //注册读事件
+    ac->ev.delRead = redisLibeventDelRead;              //注销读事件
+    ac->ev.addWrite = redisLibeventAddWrite;            //注册写事件
+    ac->ev.delWrite = redisLibeventDelWrite;            //注销写事件
+    ac->ev.cleanup = redisLibeventCleanup;
+    ac->ev.scheduleTimer = redisLibeventSetTimeout;
+    ac->ev.data = e;
