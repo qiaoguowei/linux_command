@@ -1,0 +1,196 @@
+
+怎么执行一条select语句
+数据库设计三范式
+    范式一：
+        确保每列保持原子性，不可拆分的
+        例如：某表中有一个地址字段，如果经常需要访问地址字段中的城市属性，则需要将该字段拆分为多个字段，省份、城市、详细地址等。
+    范式二：
+        确保表中的每列都和主键相关，而不能只与主键的某一部分相关(组合索引)
+    范式三：
+        确保每列都和主键直接相关，而不是间接相关；减少数据冗余；
+    反范式：
+        范式可以避免数据冗余，减少数据库的空间，减小维护数据完整性的麻烦；
+        但是采用数据库范式化设计，可能导致数据库业务设计的表变多，并且造成更多的联表查询
+OLTP
+    记录某类业务事件
+OLAP
+    过去一段时间内产生的数据拿来进行统计分析
+
+CRUD(增删改查)
+    创建数据库
+        create database `数据库名` default character set utf8;
+    删除数据库
+        drop database `mydb`;
+    选择数据库
+        use mydb
+    显示数据库中的表
+        show tables;
+    创建表
+        create table `table_name` (column_name, column_type);
+        create table if not exists `qiao_tbl` (
+            `id` int unsigned auto_increment comment '编号',
+            `course` varchar(100) not null comment '课程',
+            `teacher` varchar(40) not null comment '讲师',
+            `price` decimal(8,2) not null comment '价格',
+            primary key (`id`)
+        )engine=innoDB default charset=utf8 comment = '课程表';
+        约束：
+            not null 非空约束
+            auto increment 字赠约束
+            unique 唯一约束
+            primary 主键约束(非空，唯一)
+            foreign 外键约束
+    删除表
+        drop table `table_name`; #把数据和表都删除
+        不能回滚
+    清空数据表
+        truncate table `table_name`; #不能回滚，释放空间，以页为单位, 自增索引置1
+        delete table `table_name`; #逐行删除, 有自增索引会保留
+    增
+        insert into qiao_tbl (`course`, `teacher`, `price`) values ('math', 'qiao', 99.99);
+    删
+        delete from `qiao_tbl` where id = 1;
+    改
+        update `qiao_tbl` set `course` = 'history' where id = 1;
+    查
+        select `course`, `teacher` from qiao_tbl where id = 1;
+高级查询：
+    基础查询
+        -- 全部查询
+        SELECT * FROM student;
+        -- 只查询部分字段
+        SELECT `sname`, `class_id` FROM student;
+        -- 别名 列明 不要用关键字
+        SELECT `sname` AS '姓名' , `class_id` AS '班级ID' FROM student;
+        -- 把查询出来的结果的重复记录去掉
+        SELECT distinct `class_id` FROM student;        
+    条件查询
+        -- 查询姓名为 邓洋洋 的学生信息
+        SELECT * FROM `student` WHERE `name` = '邓洋洋';
+        -- 查询性别为 男，并且班级为 2 的学生信息
+        SELECT * FROM `student` WHERE `gender`="男" AND `class_id`=2; 
+    范围查询
+        -- 查询班级id 1 到 3 的学生的信息
+        SELECT * FROM `student` WHERE `class_id` BETWEEN 1 AND 3;
+    判空查询
+        # is null 判断造成索引失效
+        # 索引 B+ 树
+        SELECT * FROM `student` WHERE `class_id` IS NOT NULL; #判断不为空
+        SELECT * FROM `student` WHERE `class_id` IS NULL; #判断为空
+        SELECT * FROM `student` WHERE `gender` <> ''; #判断不为空字符串
+        SELECT * FROM `student` WHERE `gender` = ''; #判断为空字符串
+    模糊查询
+        -- 使用 like关键字，"%"代表任意数量的字符，”_”代表占位符
+        -- 查询名字为 m 开头的学生的信息
+        SELECT * FROM `teacher` WHERE `tname` LIKE '谢%';
+        -- 查询姓名里第二个字为 小 的学生的信息
+        SELECT * FROM `teacher` WHERE `tname` LIKE '_小%';
+    分页查询
+        -- 分页查询主要用于查看第N条 到 第M条的信息，通常和排序查询一起使用
+        -- 使用limit关键字，第一个参数表示从条记录开始显示，第二个参数表示要显示的数目。表中默认第一条记录的参数为0。
+        -- 查询第二条到第三条内容
+        SELECT * FROM `student` LIMIT 1,2;
+    查询后排序
+        -- 关键字：order by field, asc:升序, desc:降序
+        SELECT * FROM `score` ORDER BY `num` ASC;
+        -- 按照多个字段排序
+        SELECT * FROM `score` ORDER BY `course_id` DESC, `num` DESC;
+    分组查询
+        -- 分组加group_concat
+        SELECT `gender`, group_concat(`age`) as ages FROM `student` GROUP BY `gender`;
+        -- 可以把查询出来的结果根据某个条件来分组显示
+        SELECT `gender` FROM `student` GROUP BY `gender`;
+        -- 分组加聚合
+        SELECT `gender`, count(*) as num FROM `student` GROUP BY `gender`;
+        -- 分组加条件
+        SELECT `gender`, count(*) as num FROM `student` GROUP BY `gender` HAVING num > 6;
+    联表查询
+        INNER JOIN 求交集
+        LEFT JOIN 保留左表没有对应关系的记录和他们的交集
+        RIGHT JOIN 保留右表没有对应关系的记录和他们的交集
+    作业
+        #查询平均成绩大于60分的同学的学号和平均成绩
+        select student_id, avg(num) as avg_num from score group by student_id having avg_num > 60;
+        #查询'c++高级架构'课程比'音视频'课程成绩高的所有学生的学号；
+        select A.student_id from 
+        (
+        (select student_id, num from score where course_id = 
+            (select cid from course where cname = 'c++高级架构')) as A
+        inner join 
+        (select student_id, num from score where course_id =
+            (select cid from course where cname = '音视频')) as B
+        on A.student_id = B.student_id
+        )
+        where A.num > B.num;
+        #查询学过课程编号为'1'并且也学过课程编号为'2'的同学的学号、姓名
+
+
+mysql索引
+    主键索引
+        非空唯一
+    唯一索引
+        不可以出现相同的值，可以有NULL值
+    普通索引
+        允许出现相同的索引内容
+    组合索引
+        对表上的多个列进行索引
+        先对key1比较，key1相同再比较key2，以此类推
+
+    主键选择
+        1.如果没有显示设置主键，则从非空唯一索引中选择
+            1.只有一个非空唯一索引，则选择该索引为主键
+            2.有多个非空唯一索引，则选择声明的第一个为主键
+        2.没有非空唯一索引，则自动生成一个6字节的_rowid作为主键
+
+    索引的目的
+        提升搜索效率
+
+    索引分类
+        数据结构
+            B+树索引
+            hash索引
+        物理存储
+            聚集索引(主键索引)
+            辅助索引(二级索引, 除了主键之外的索引)
+                不能直接找到行记录，只能找到主键id，还需要查主键索引
+        索引的代价
+            占用空间变大
+                一个索引对应一个B+树
+                修改一个字段，除了修改主键索引B+树，还需要修改对应的二级索引B+树
+        索引使用场景
+            where
+            group by
+            order by 
+        不适用索引的场景
+            没有where/group by/order by中使用
+            区分度不高的列，比如一个列中的value，百分之50都相同
+            经常修改的列
+            表数据量少
+        索引覆盖
+            不需要走主键索引，select的字段在普通索引中都有
+        最左匹配原则
+            从左到右依次匹配
+            普通索引为name,cid
+            select * from left_match_t where name = 'qqq'; 会走索引
+            select * from left_match_t where cid = 1; 不会走索引，全表匹配
+            select * from left_match_t where cid = 1 and name = 'qqq'; 会走索引
+            select * from left_match_t where cid = 1 and name != 'qqq'; 不会走索引
+
+            尽量扩展索引，避免创建索引
+
+        索引下推
+            目的：减少回表次数
+            对象：辅助索引
+                select * from left_match_t where cid = 1 and name > 'qqq'; 会走索引
+                把条件直接丢给存储引擎，存储引擎汇总后返回
+        索引失效
+            模糊查询 ------'%谢' 百分号开头的
+            对索引列进行运算
+            发生隐式转换
+                mysql遇到字符串和数字比较时，会自动将字符串转换为数字，不会走索引 
+            使用不等于的时候
+            没有使用第一列索引
+        
+            
+
+
