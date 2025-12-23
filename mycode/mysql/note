@@ -190,7 +190,57 @@ mysql索引
                 mysql遇到字符串和数字比较时，会自动将字符串转换为数字，不会走索引 
             使用不等于的时候
             没有使用第一列索引
-        
+
+事务
+    前提
+        并发连接访问
+    用户定义的一系列操作，这些操作要么都做，要么都不做，是一个不可分割的单位
+    事务语句
+        begin/start transaction
+        commit
+        rollback
+    acid特性
+        原子性
+            undolog(mvcc记录事务DML操作提交后产生的行数据版本信息)
+            要么都成功，要么都失败
+        一致性
+            数据库完整约束，唯一约束，不能被打破
+            逻辑上的一致，可以被破坏
+        隔离性
+            防止多个事务交叉执行导致数据不一致
+            锁和mvcc(读操作的时候不加锁)来实现
+        持久性
+            redolog()
+            事务必须要落到磁盘
+    隔离级别
+        READ UNCOMMITTED
+            读未提交；该级别下读不加锁，写加排他锁，写锁在事务提交或回滚后释放锁；
+        READ COMMITTED
+            读已提交；读事务开始时的数据
+        REPEATEABLE READ
+            可重复读
+        SERIALIZABLE
+            serializable 串行化，读写都加锁
+
+        命令
+            set [global | session(当前连接)] transaction isolation level repeatable read;
+            set @@tx_isolation = 'repeatable read';
+            set @@global.tx_isolation = 'repeatable read';
+
+            select @@global.tx_isolation;
+
+mysql缓冲
+    1.redis是不是缓存mysql所有数据？  
+        用户定义的热点数据
+    2.mysql自己不能缓存用户定义的热点数据？
+        不能，只能缓存自己认为的热点数据
+        lru
+
+
+
+    1预约制
+        12点前预约 12点领取
+
             
 
 
