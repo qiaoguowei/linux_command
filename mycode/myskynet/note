@@ -1,0 +1,23 @@
+skynet
+
+actor并发模型
+用户层抽象了进程
+
+skynet-设计原理
+    框架
+        抽象了什么模型
+            actor并发模型
+            用户层抽象进程
+            actor怎么运行？
+                消息驱动actor运行
+                网络消息驱动
+                定时消息驱动
+                每一个actor都需要一个消息队列
+                为每一个actor提供一个回调函数
+            协程消除回调
+                根据sessionid选择一个协程去执行callback
+        为什么要在用户层抽象actor
+            每个actor对应一个lua虚拟机
+            隔离的运行环境
+        所有的actor都是对等的概念
+            公平调度

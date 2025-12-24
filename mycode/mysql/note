@@ -126,6 +126,17 @@ CRUD(增删改查)
 
 
 mysql索引
+    创建索引的sql语句
+        alter table table_name add primary key(column_name);
+        alter table table_name add index (column_name);
+        alter table table_name add unique (column_name);
+        create index index_name on table_name (column_name);
+        create unique index_Name on table_name (column_name);
+    删除索引
+        alter table table_name drop index index_name
+        alter table table_name drop primary key
+        drop index index_name on table table_name;
+
     主键索引
         非空唯一
     唯一索引
@@ -228,6 +239,65 @@ mysql索引
             set @@global.tx_isolation = 'repeatable read';
 
             select @@global.tx_isolation;
+    MVCC 
+        一、先明确MVCC的核心目标
+            在没有mvcc的情况下，事务隔离只能靠加锁实现(比如读加共享锁，写加排他锁)，会导致：
+                读操作阻塞写操作（持有共享锁时，排他锁无法获取）；
+                写操作阻塞读操作（持有排他锁时，共享锁无法获取）；
+            mvcc解决这个问题的核心思路：
+                写操作不直接修改原始数据，而是生成数据的新版本；读操作根据事务的可见性规则，读取数据的
+                    历史版本（而非最新版本），从而避免读写互锁。
+        二、mvcc依赖的核心数据结构
+            InnoDB实现mvcc依赖的三个关键组件：隐藏字段、undolog（回滚日志）、Read View（读视图）
+            1.行记录的隐藏字段（每行数据自带）
+                InnoDB会为表中每行数据自动添加3个隐藏字段，用于维护版本信息
+                DB_TRX_ID：最后一次修改该记录的事务ID(6字节)，插入/更新行时，记录当前事务ID，删除行时，
+                    标记为"更新"，记录事务ID
+                DB_ROLL_PTR：回滚指针(7个字节)：指向该记录的undolog版本链的上一个版本(类似链表的next指针)
+                DB_ROW_ID：行ID，若表无主键/唯一索引，InnoDB会自动生成该字段，作为聚集索引的主键
+            2.undolog
+                undolog是InnoDB为事务修改数据时生成的历史版本日志，其核心作用
+                    事务回滚
+                    mvcc版本链，每次修改数据时，会将旧版本数据写入undolog，并通过 DB_ROLL_PTR 形成「版本链」
+                版本链生成过程（以更新操作为例）：
+                    事务 T1（ID=100）插入 (1, 张三) → 版本链只有最新版本（无 undo log）；
+                    事务 T2（ID=101）更新该记录为 (1, 李四)：
+                        先将旧版本 (1, 张三, 100, NULL) 写入 undo log；
+                        更新行记录的 DB_TRX_ID=101，DB_ROLL_PTR 指向 undo log 中的旧版本；
+                    事务 T3（ID=102）更新该记录为 (1, 王五)：
+                        将当前版本 (1, 李四, 101, 指向undo log1) 写入 undo log；
+                        更新行记录的 DB_TRX_ID=102，DB_ROLL_PTR 指向 undo log 中的该版本；
+                    最终形成的版本链（最新版本在表中，历史版本在 undo log 中）：
+
+                    表中行记录（最新版本）：(1, 王五, 102, 指向undo log2)
+                          ↑
+                    undo log2：(1, 李四, 101, 指向undo log1)
+                          ↑
+                    undo log1：(1, 张三, 100, NULL)
+            3. Read View（读视图）：判断版本可见性
+                Read View 是事务执行「快照读」时生成的「可见性规则快照」，包含四个核心字段：
+                m_ids: 当前活跃（未提交）的事务 ID 列表（比如当前有 T101、T103 未提交，则 m_ids=[101,103]）
+                min_trx_id: m_ids 中的最小事务 ID（如上例为 101）。
+                max_trx_id: 系统下一个要分配的事务 ID（全局递增，比如下一个是 104）。
+                creator_trx_id: 生成该 Read View 的事务 ID（比如事务 T100 生成，则为 100）。
+
+                Read View 的可见性判断规则（核心！）：
+                    对于数据版本的 DB_TRX_ID（记为 trx_id），判断是否对当前事务可见：
+                    trx_id < min_trx_id：该版本是「已提交事务」生成的，可见；
+                    trx_id > max_trx_id：该版本是「未来事务」生成的，不可见；
+                    min_trx_id ≤ trx_id ≤ max_trx_id：
+                        若 trx_id 在 m_ids 中（事务未提交），不可见；
+                        若 trx_id 不在 m_ids 中（事务已提交），可见；
+                    trx_id = creator_trx_id：当前事务自己修改的版本，可见。
+        三、MVCC 核心流程：快照读 vs 当前读
+            快照读（Snapshot Read）:读取数据的「历史版本」（快照），不加锁，不阻塞写操作
+            当前读（Current Read）:读取数据的「最新版本」，会加锁（共享锁 / 排他锁），阻塞写 / 读操作
+            2. 不同隔离级别的 MVCC 差异
+                读未提交（RU）不生成 Read View，直接读取最新版本，能看到未提交事务的修改（脏读）
+                读已提交（RC）每次执行快照读时，重新生成 Read View，同一事务内多次读，可能看到不同版本（不可重复读）
+                可重复读（RR）事务第一次执行快照读时，生成一次 Read View，后续复用，同一事务内多次读，看到的是同一版本（可重复读）
+                串行化（SR）禁用 MVCC，完全靠锁实现（读加共享锁），读写互斥，无并发问题，但性能最差
+
 
 mysql缓冲
     1.redis是不是缓存mysql所有数据？  
