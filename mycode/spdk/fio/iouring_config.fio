@@ -1,0 +1,18 @@
+[global]
+thread=1
+group_reporting=1
+direct=1
+verify=0
+time_based=1
+runtime=10
+bs=512
+size=16384
+iodepth=16
+rw=randrw
+ioengine=io_uring
+filename=qiaofs
+
+[bs=512]
+stonewall
+description="variable bs"
+bs=512

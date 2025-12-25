@@ -1,0 +1,19 @@
+spdk
+    spdk能不能代替fastdfs?
+    spdk与ceph有什么关系
+    spdk与内核文件系统有什么关系
+
+    1.源码编译
+        git clone https://github.com/spdk/spdk
+        cd spdk
+        git submodule update --init
+        ./scriptspkgdep.sh
+        ./configure
+        make
+    2.运行环境
+        在vmware添加一块NVMe的硬盘
+        ./scripts/setup.sh
+
+    框架
+        1.---> main
+        2.---> module
