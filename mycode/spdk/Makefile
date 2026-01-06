@@ -11,6 +11,6 @@ APP = q_fs
 
 C_SRCS := q_fs.c
 
-SPDK_LIB_LIST = $(ALL_MODULES_LIST) event event_bdev
+SPDK_LIB_LIST = $(ALL_MODULES_LIST) event event_bdev json
 
 include $(SPDK_ROOT_DIR)/mk/spdk.app.mk
