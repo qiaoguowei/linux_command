@@ -42,19 +42,21 @@ event_t *new_event(reactor_t *r, int fd, \
     event_t *e = _get_event_t(r);
     e->r = r;
     e->fd = fd;
-    e->in = buffer_new(16*1024);
-    e->out = buffer_new(16*1024);
+    e->in = static_cast<uint8_t*>(malloc(1024));
+    memset(e->in, 0, 1024);
+    e->out = static_cast<uint8_t*>(malloc(1024));
+    memset(e->out, 0, 1024);
     e->read_fn = std::move(rd);
     e->write_fn = std::move(wt);
     e->error_fn = std::move(err);
     return e;
 }
 
-buffer_t *evbuf_in(event_t* e) {
+uint8_t *evbuf_in(event_t* e) {
     return e->in;
 }
 
-buffer_t *evbuf_out(event_t* e) {
+uint8_t *evbuf_out(event_t* e) {
     return e->out;
 }
 
@@ -63,8 +65,8 @@ reactor_t *event_base(event_t *e) {
 }
 
 void free_event(event_t *e) {
-    buffer_free(e->in);
-    buffer_free(e->out);
+    free(e->in);
+    free(e->out);
 }
 
 int set_nonblock(int fd) {
@@ -120,8 +122,8 @@ void eventloop_once(reactor_t *r, int timeout) {
             if (et->write_fn)
                 et->write_fn(et->fd, EPOLLOUT, et);
             else {
-                uint8_t *buf = buffer_write_atmost(evbuf_out(et));
-                event_buffer_write(et, buf, buffer_len(evbuf_out(et)));
+                uint8_t *buf = (evbuf_out(et));
+                event_buffer_write(et, buf, strlen(reinterpret_cast<char*>(evbuf_out(et))));
             }
         }
     }
@@ -187,8 +189,7 @@ int event_buffer_read(event_t *e) {
     int fd = e->fd;
     int num = 0;
     while (true) {
-        char buf[1024] = {0};
-        int n = read(fd, buf, 1024);
+        int n = read(fd, evbuf_in(e) + num, 1023 - num);
         if (n == 0) {
             std::cout << "close connection fd = " << fd << std::endl;
             if (e->error_fn)
@@ -208,8 +209,7 @@ int event_buffer_read(event_t *e) {
             close(fd);
             return -1;
         } else {
-            std::cout << "recv data from client:" << buf << std::endl;
-            buffer_add(evbuf_in(e), buf, n);
+            std::cout << "recv data from client:" << evbuf_in(e) << std::endl;
         }
         num += n;
     }
@@ -236,12 +236,14 @@ static int _write_socket(event_t *e, void *buf, int sz) {
 }
 
 int event_buffer_write(event_t *e, void *buf, int sz) {
-    buffer_t *out  = evbuf_out(e);
-    if (buffer_len(out) == 0) {
+    uint8_t *out  = evbuf_out(e);
+    if (strlen(reinterpret_cast<char*>(out)) == 0) {
         int n = _write_socket(e, buf, sz);
         if (n == 0 || n < sz) {
             // 发送失败，除了将没有发送出去的数据写入缓冲区，还要注册写事件
-            buffer_add(out, (char*)buf + n, sz - n);
+            //buffer_add(out, (char*)buf + n, sz - n);
+            buf = (char*)buf + n;
+            sz -= n;
             enable_event(e->r, e, 1, 1);
             return 0;
         } else if (n < 0) {
@@ -249,6 +251,5 @@ int event_buffer_write(event_t *e, void *buf, int sz) {
         }
         return 1;
     }
-    buffer_add(out, (char*)buf, sz);
     return 1;
 }

@@ -17,8 +17,13 @@ public:
         //初始化空闲链表：每个对象的前sizeof(void*)字节存储下一个空闲对象的指针
         for (size_t i = 0; i < size - 1; ++i)
         {
-            char *current = buffer_ + i * sizeof(T);
+            char *current = buffer_ + i * sizeof(T); //current 是 char* 类型，存储的是「堆内存起始地址 A」
             char *next = buffer_ + (i + 1) * sizeof(T);
+            /*
+                转换为 char** 后，含义变为：「这是一个指向「char * 类型指针」的指针」，
+                    其存储的地址仍然是「堆内存起始地址 A」，只是编译器对该地址的内存解读方式变了。
+                对于 char** 类型的指针（假设其值为地址 A），解引用（*）就是「访问地址 A 处的内存，并将该内存区域解读为一个 char* 类型的指针」；
+             */
             *reinterpret_cast<char**>(current) = next;
         }
         //链表尾节点置空
@@ -49,6 +54,9 @@ public:
         char* obj_ptr = free_list_head_;
         free_list_head_ = *reinterpret_cast<char**>(obj_ptr);
 
+        /*
+new (obj_ptr) T(std::forward<Args>(args)...) 是定位 new（placement new），它的核心作用是「在已分配好的内存地址（obj_ptr 指向的堆内存）上构造 T 类型对象」，不会执行任何新的内存分配操作
+         */
         return new (obj_ptr)T(std::forward<Args>(args)...);
     }
 

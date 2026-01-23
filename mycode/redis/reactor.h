@@ -15,8 +15,8 @@ struct event_t {
 
     int fd;
     reactor_t *r;
-    buffer_t *in;
-    buffer_t *out;
+    uint8_t *in;
+    uint8_t *out;
 
     event_callback_fn read_fn;
     event_callback_fn write_fn;
@@ -45,8 +45,8 @@ event_t *new_event(reactor_t *r, int fd, \
 
 void free_event(event_t *e);
 
-buffer_t *evbuf_in(event_t *e);
-buffer_t *evbuf_out(event_t *e);
+uint8_t *evbuf_in(event_t *e);
+uint8_t *evbuf_out(event_t *e);
 
 reactor_t *event_base(event_t *e);
 

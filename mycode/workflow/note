@@ -1,0 +1,23 @@
+workflow
+    workflow是什么
+        搜狗公司c++服务器引擎
+    特征：
+        快速搭建http服务器
+        可异步访问常见第三方服务：http, redis, mysql, kafka
+    workflow编译安装
+        git clone https://github.com/sogou/workflow.git
+        cd workflow
+        make
+        cd tutorial
+        make
+    workflow是怎么解决问题的
+        程序+协议+算法+任务流
+        请求回应模式
+        游戏开发-主动推送数据
+    任务流
+        任务是异步执行的
+        任务隐藏了若干个异步执行流
+        封装了哪些任务
+            网络
+                服务端
+                客户端
