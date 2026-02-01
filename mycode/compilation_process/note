@@ -1,0 +1,5 @@
+g++ -E hello.cpp -o hello.i
+g++ -S hello.i -o hello.s
+g++ -c hello.s -o hello.o
+g++ hello.o -o hello_static -static
+g++ hello.o -o hello
